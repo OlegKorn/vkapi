@@ -3,11 +3,11 @@ import vk_api, re
 import json
 
 
-home = '/home/o/Изображения/VK/'
+home = '/home/o/Изображения/VK/fantazy/'
 
 vk_session = vk_api.VkApi(
-  'login', 
-  'passw'
+  'phone', 
+  'pass'
 )
 headers = {
   'access-control-allow-origin' : '*',
@@ -24,43 +24,67 @@ api_version = '5.103'
 vk_session.auth()    
 vk = vk_session.get_api()
 
-album_url = 'https://vk.com/album-63418564_184539412'
-album_dir = album_url.replace('https://vk.com/', '')
+album_urls = [
+  'https://vk.com/album-2481783_23140238'
+  'https://vk.com/album-2481783_23140238',
+  'https://vk.com/album-2481783_137160020',
+  'https://vk.com/album-2481783_98052270',
+  'https://vk.com/album-2481783_31701973',
+  'https://vk.com/album-2481783_54358041',
+  'https://vk.com/album-2481783_105879702',
+  'https://vk.com/album-2481783_92237492'
+]
 
-ids = re.search('album(.*)', album_url).group(1) # https://vk.com/znamenitye_zhenshiny?z=album-63418564_208781310
+for album_url in album_urls:
+    try:
+        print(album_url)
+        ids = re.search('album(.*)', album_url).group(1) # https://vk.com/znamenitye_zhenshiny?z=album-63418564_208781310
 
-owner_id = ids.split('_')[0]
-album_id = ids.split('_')[1]
+        owner_id = ids.split('_')[0]
+        album_id = ids.split('_')[1]
 
-# https://vk.com/dev/photos.get
-fotos = vk.photos.get(
-  owner_id = owner_id,
-  album_id = album_id,
-  count = 500
-)  
+        # название альбома
+        # https://vk.com/dev/photos.getAlbums
+        album_title = vk.photos.getAlbums(
+          owner_id = owner_id, 
+          album_ids = album_id
+        )['items'][0]['title']
 
-# создадим папку для альбома
-if not os.path.exists(home + album_dir):
-    os.mkdir(home + album_dir, mode=0o777)           
-    print('Folder __{}__ created'.format(home + album_dir))
-else: 
-    print('{} already exists'.format(home + album_dir))
+        fotos = vk.photos.get(
+          owner_id = owner_id,
+          album_id = album_id,
+          count = 999
+        )
 
-for i in fotos['items']:
+        # создадим папку для альбома
+        if not os.path.exists(home + album_title):
+            os.mkdir(home + album_title, mode=0o777)           
+            print('Folder __{}__ created'.format(home + album_title))
+        else: 
+            print('{} already exists'.format(home + album_title))
+            continue
 
-  try:
-    foto_url = i['sizes'][-1]['url']
-    foto_name = foto_url[:-1:8]
-    session = requests.Session()
-    r = requests.get(foto_url, stream=True)
-    image = r.raw.read()
-    print(foto_url)
-    open(home + album_dir + '/' + foto_name, "wb").write(image)
-  
-  except (ProtocolError, AttributeError):
-      continue
-  
+        for i in fotos['items']:
 
+          try:
+            foto_url = i['sizes'][-1]['url']
+
+            # https://sun4-16.userapi.com/r9CRrpavGl8J1KPexPrFqLwuLDsgywBaNl7fJw/7KeyWyO6TZU.jpg
+            foto_name = foto_url[60:].replace('/', '_')
+
+            session = requests.Session()
+            r = requests.get(foto_url, stream=True)
+            image = r.raw.read()
+            print(foto_url, album_title, sep='   ------   ')
+            open(home + album_title + '/' + foto_name, "wb").write(image)
+          
+          except Exception as e:
+              print(e)
+              continue
+        
+    except Exception as e:
+        print(e)
+        continue
 
 
 
