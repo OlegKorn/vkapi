@@ -5,6 +5,7 @@ import vk_api
 access_token = ''
 api_version = '5.122'
 
+# ex.: https://vk.com/club68046969 (owner_id = '-' + 68046969)
 owner_id = '-68046969'
 
 home = 'G:/Desktop/py/' + owner_id[1:] + '/'
