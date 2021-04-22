@@ -3,8 +3,8 @@ import vk_api
 import wget 
 
 
-login = ''
-passw = ""
+login = 
+passw =
 
 owner_id = '-29556'
 # album_id = '265172957'
@@ -50,7 +50,10 @@ class VkGroupAlbumsDownloader:
         vk = self.vk_auth()
 
         albums = vk.photos.getAlbums(owner_id=owner_id)
-        
+
+        urls = open(self.path + 'urls.txt', 'w')
+        urls_downloaded = open(self.path + 'urls_downloaded.txt', 'w')
+
         for album in albums['items']:
             print(album['title'])
 
@@ -66,22 +69,34 @@ class VkGroupAlbumsDownloader:
                 # print(i['sizes'][-1]['url'])
 
                 url = i['sizes'][-1]['url']
-
-                session = requests.Session()
-
                 # delete \n from url
                 url_normalized = url.replace('\n', '').replace('&type=album', '').strip()
                 url_normalized = re.search(r'.*(?<=&c_uniq_tag=)', url_normalized).group(0).replace('&c_uniq_tag=', '')
+                
+                try:
+                    session = requests.Session()
 
-                r = requests.get(url_normalized, stream=True)
+                    # write urls into file
+                    urls.write(url_normalized)
+                    urls.write('\n')
 
-                image = r.raw.read()
-                img_title_len = len(url_normalized) - 12
+                    r = requests.get(url_normalized, stream=True)
 
-                print(self.path + (url_normalized[img_title_len:].replace('/', '_')) + '.jpg')
+                    image = r.raw.read()
+                    img_title_len = len(url_normalized) - 12
 
-                open(self.path + url_normalized[img_title_len:].replace('/', '_') + '.jpg', "wb").write(image)
+                    print(self.path + (url_normalized[img_title_len:].replace('/', '_')) + '.jpg')
 
+                    open(self.path + url_normalized[img_title_len:].replace('/', '_') + '.jpg', "wb").write(image)
+                    urls_downloaded.write(url_normalized)
+                    urls_downloaded.write('\n')
+                    
+                except Exception as e:
+                    print(f'{e}, \n, url_normalized = {url_normalized}, \n')
+                    continue
+
+        urls.close()
+        urls_downloaded.close()
 
 
 v = VkGroupAlbumsDownloader()
