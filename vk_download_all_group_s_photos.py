@@ -1,80 +1,88 @@
-import requests, os
+import requests, os, re, time
 import vk_api
+import wget 
 
 
-access_token = ''
-api_version = '5.122'
+login = ''
+passw = ""
 
-# ex.: https://vk.com/club68046969 (owner_id = '-' + 68046969)
-owner_id = '-68046969'
-
-home = 'G:/Desktop/py/' + owner_id[1:] + '/'
-txt = 'G:/Desktop/py/' + owner_id[1:] + '/' + owner_id[1:] + '.txt' 
-
-if not os.path.exists(home):
-    os.mkdir(home, mode=0o777)           
-    print('Folder __{}__ created'.format(home))
-else: 
-    print('{} already exists'.format(home))
+owner_id = '-29556'
+# album_id = '265172957'
 
 
-
-def main():
-    f = open(txt, 'w')
-
-    vk_session = vk_api.VkApi(
-      'phone', 
-      'passw'
-    )
-
-    vk_session.auth()    
-    vk = vk_session.get_api()
-
-    albums = vk.photos.getAlbums(owner_id = owner_id)['items']
-
-    for _ in albums:
-        # id of album
-        album_id = _['id']
-
-        fotos = vk.photos.get(
-            owner_id = owner_id,
-            album_id = album_id,
-            count = 999
-        )
-
-        print('================')
-        print(album_id)
-        print('================')
-
-        # grab all the fotos' urls from every album
-        for foto in fotos['items']:
-            foto_url = foto['sizes'][-1]['url']
-
-            f.write(foto_url + '\n')
-            print(foto_url)
-
-    f.close()
+class VkGroupAlbumsDownloader:
+    def __init__(self):
+        self.login = login
+        self.passw = passw
+      
+        group_name=self.get_group_name()
+        self.path = f'G:/Desktop/py/{group_name}/'
+       
+        try:
+            if not os.path.exists(self.path):
+                os.mkdir(self.path, mode=0o777)
+                print(f'Created path {self.path}')
+            else:
+                print(f'Path {self.path} exists')
+        except Exception as e:
+            print(f'Cant create path {self.path}')
 
 
-def save_img():
-    f = open(txt, 'r').readlines()
+    def vk_auth(self):        
+        vk_session = vk_api.VkApi(self.login, self.passw)
+        vk_session.auth()    
+        vk = vk_session.get_api()
 
-    try:
-        for url in f:
-            session = requests.Session()
+        return vk
 
-            # delete \n from url
-            url_normalized = url.replace('\n', '').strip()
-            print(url_normalized)
 
-            r = requests.get(url_normalized, stream=True)
+    def get_group_name(self):
+        vk = self.vk_auth()
+        group_name = vk.groups.getById(group_ids = owner_id \
+                              .replace('-', ''))[0]['name'] \
+                              .replace(' ', '_') \
+                              .replace('|', '-')
 
-            image = r.raw.read()
-            img_title_len = len(url_normalized) - 12
-            open(home + url_normalized[img_title_len:].replace('/', '_'), "wb").write(image)
+        return group_name
 
-        f.close()
 
-    except Exception:
-        pass
+    def download(self):
+        vk = self.vk_auth()
 
+        albums = vk.photos.getAlbums(owner_id=owner_id)
+        
+        for album in albums['items']:
+            print(album['title'])
+
+            fotos = vk.photos.get(
+                owner_id = owner_id,
+                album_id = album['id'],
+                count = 999
+            )
+
+            title = album['title'].replace('"', '')
+            
+            for i in fotos['items']:
+                # print(i['sizes'][-1]['url'])
+
+                url = i['sizes'][-1]['url']
+
+                session = requests.Session()
+
+                # delete \n from url
+                url_normalized = url.replace('\n', '').replace('&type=album', '').strip()
+                url_normalized = re.search(r'.*(?<=&c_uniq_tag=)', url_normalized).group(0).replace('&c_uniq_tag=', '')
+
+                r = requests.get(url_normalized, stream=True)
+
+                image = r.raw.read()
+                img_title_len = len(url_normalized) - 12
+
+                print(self.path + (url_normalized[img_title_len:].replace('/', '_')) + '.jpg')
+
+                open(self.path + url_normalized[img_title_len:].replace('/', '_') + '.jpg', "wb").write(image)
+
+
+
+v = VkGroupAlbumsDownloader()
+v.download()
