@@ -8,7 +8,7 @@ passw = ""
 
 owner_id = '-40368555' #'-63399807' #'-133382245' # '-33710306' # '-46985429' # '-78513317' # '-55407041'
 # album_id = '265172957'
-FORBIDEN_SYMBOLS = ('*,<>:\'\\"/\|?=')
+FORBIDEN_SYMBOLS = ('n*,<>:\'\\"/\|?=')
 
 
 class VkGroupAlbumsDownloader:
@@ -65,6 +65,7 @@ class VkGroupAlbumsDownloader:
             )
 
             album_title = album['title']
+
             # delete forbidden file name symbols
             for symbol in FORBIDEN_SYMBOLS:
                 if symbol in album_title:
@@ -74,15 +75,18 @@ class VkGroupAlbumsDownloader:
                 # print(i['sizes'][-1]['url'])
 
                 url = i['sizes'][-1]['url']
-                foto_title = i['text']
-                
+                foto_title = i['text'].strip()
+
+                if '\n' in foto_title:
+                    foto_title = foto_title.replace('\n', '')
+
                 # delete forbidden file name symbols
                 for symbol in FORBIDEN_SYMBOLS:
                     if symbol in foto_title:
                         foto_title = foto_title.replace(symbol, ' ')
                         
-                if len(foto_title) > 100:
-                    foto_title = foto_title[0:100]
+                if len(foto_title) > 130:
+                    foto_title = foto_title[0:129]
 
                 # delete \n from url
                 url_normalized = url.replace('\n', '').replace('&type=album', '').strip()
@@ -100,14 +104,13 @@ class VkGroupAlbumsDownloader:
                     image = r.raw.read()
 
                     print(f"{album_title + '_' + foto_title + '_' + str(counter)}" + '.jpg')
-
+                    
                     open(f"{self.path + album_title + '_' + foto_title + '_' + str(counter)}" + '.jpg', "wb").write(image)
                     urls_downloaded.write(url_normalized)
                     urls_downloaded.write('\n')
 
                     counter += 1
                     
-
                 except Exception as e:
                     print(f'{e}\nurl_normalized = {url_normalized}\n')
                     continue
