@@ -3,11 +3,12 @@ import vk_api
 import wget 
 
 
-login = ''
+login = ""
 passw = ""
 
-owner_id = '-46985429' # '-78513317' # '-55407041'
+owner_id = '-40368555' #'-63399807' #'-133382245' # '-33710306' # '-46985429' # '-78513317' # '-55407041'
 # album_id = '265172957'
+FORBIDEN_SYMBOLS = ('*,<>:\'\\"/\|?=')
 
 
 class VkGroupAlbumsDownloader:
@@ -47,6 +48,7 @@ class VkGroupAlbumsDownloader:
 
 
     def download(self):
+        counter = 0
         vk = self.vk_auth()
 
         albums = vk.photos.getAlbums(owner_id=owner_id)
@@ -55,27 +57,40 @@ class VkGroupAlbumsDownloader:
         urls_downloaded = open(self.path + 'urls_downloaded.txt', 'w')
 
         for album in albums['items']:
-            print(album['title'])
-
+            
             fotos = vk.photos.get(
                 owner_id = owner_id,
                 album_id = album['id'],
                 count = 999
             )
 
-            title = album['title'].replace('"', '')
+            album_title = album['title']
+            # delete forbidden file name symbols
+            for symbol in FORBIDEN_SYMBOLS:
+                if symbol in album_title:
+                    album_title = album_title.replace(symbol, ' ')
             
             for i in fotos['items']:
                 # print(i['sizes'][-1]['url'])
 
                 url = i['sizes'][-1]['url']
+                foto_title = i['text']
+                
+                # delete forbidden file name symbols
+                for symbol in FORBIDEN_SYMBOLS:
+                    if symbol in foto_title:
+                        foto_title = foto_title.replace(symbol, ' ')
+                        
+                if len(foto_title) > 100:
+                    foto_title = foto_title[0:100]
+
                 # delete \n from url
                 url_normalized = url.replace('\n', '').replace('&type=album', '').strip()
                 url_normalized = re.search(r'.*(?<=&c_uniq_tag=)', url_normalized).group(0).replace('&c_uniq_tag=', '')
                 
                 try:
                     session = requests.Session()
-
+                    
                     # write urls into file
                     urls.write(url_normalized)
                     urls.write('\n')
@@ -83,26 +98,23 @@ class VkGroupAlbumsDownloader:
                     r = requests.get(url_normalized, stream=True)
 
                     image = r.raw.read()
-                    img_title_len = len(url_normalized) - 12
 
-                    print(f'{self.path + title}' + '/' + (url_normalized[img_title_len:].replace('/', '_')) + '.jpg')
+                    print(f"{album_title + '_' + foto_title + '_' + str(counter)}" + '.jpg')
 
-                    if not os.path.exists(f'{self.path + title}'):
-                        os.mkdir(f'{self.path + title}', mode=0o777)
-                        print(f'Created path {self.path + title}')
-
-                    open(f'{self.path + title}' + '/' + url_normalized[img_title_len:].replace('/', '_') + '.jpg', "wb").write(image)
+                    open(f"{self.path + album_title + '_' + foto_title + '_' + str(counter)}" + '.jpg', "wb").write(image)
                     urls_downloaded.write(url_normalized)
                     urls_downloaded.write('\n')
+
+                    counter += 1
                     
 
                 except Exception as e:
-                    print(f'{e}, \n, url_normalized = {url_normalized}, \n')
+                    print(f'{e}\nurl_normalized = {url_normalized}\n')
                     continue
-
+                
         urls.close()
         urls_downloaded.close()
-
+        
 
 v = VkGroupAlbumsDownloader()
 v.download()
@@ -110,10 +122,14 @@ v.download()
 
 
 
+def _2ch_video(url):
+    import requests
+    from bs4 import BeautifulSoup as bs
 
-
-
-
+    r = requests.get('https://2ch.hk/b/res/250161459.html', stream=True)
+    
+    print(r.text)
+   
 
 
 
@@ -349,4 +365,10 @@ def download():
     f2.close()      
 
 download()
+'''
+
+'''
+session = requests.Session()
+r = requests.get('https://www.irk.ru')
+print(r.status_code)
 '''
