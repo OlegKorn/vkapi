@@ -1,14 +1,17 @@
 import requests, os, re, time
 import vk_api
 import wget 
+import logging
 
+
+FORMAT = '%(message)s'
 
 login = ""
 passw = ""
 
 owner_id = '-40368555' #'-63399807' #'-133382245' # '-33710306' # '-46985429' # '-78513317' # '-55407041'
 # album_id = '265172957'
-FORBIDEN_SYMBOLS = ('n*,<>:\'\\"/\|?=')
+FORBIDEN_SYMBOLS = ('*,<>:\'\\"/\|?=')
 
 
 class VkGroupAlbumsDownloader:
@@ -47,33 +50,26 @@ class VkGroupAlbumsDownloader:
         return group_name
 
 
-    def download(self):
-        counter = 0
+    def write_urls_album_title_and_foto_text_to_log(self):
+        c = 0
+        
         vk = self.vk_auth()
-
         albums = vk.photos.getAlbums(owner_id=owner_id)
-
-        urls = open(self.path + 'urls.txt', 'w')
-        urls_downloaded = open(self.path + 'urls_downloaded.txt', 'w')
-
+        
         for album in albums['items']:
-            
             fotos = vk.photos.get(
                 owner_id = owner_id,
                 album_id = album['id'],
                 count = 999
             )
-
             album_title = album['title']
 
             # delete forbidden file name symbols
             for symbol in FORBIDEN_SYMBOLS:
                 if symbol in album_title:
                     album_title = album_title.replace(symbol, ' ')
-            
+    
             for i in fotos['items']:
-                # print(i['sizes'][-1]['url'])
-
                 url = i['sizes'][-1]['url']
                 foto_title = i['text'].strip()
 
@@ -84,43 +80,66 @@ class VkGroupAlbumsDownloader:
                 for symbol in FORBIDEN_SYMBOLS:
                     if symbol in foto_title:
                         foto_title = foto_title.replace(symbol, ' ')
-                        
+                            
                 if len(foto_title) > 130:
                     foto_title = foto_title[0:129]
 
                 # delete \n from url
                 url_normalized = url.replace('\n', '').replace('&type=album', '').strip()
                 url_normalized = re.search(r'.*(?<=&c_uniq_tag=)', url_normalized).group(0).replace('&c_uniq_tag=', '')
+
+                logging.basicConfig(
+                    filename=f"{self.path}urls.log",
+                    level=logging.INFO, 
+                    format=FORMAT
+                )
                 
-                try:
-                    session = requests.Session()
-                    
-                    # write urls into file
-                    urls.write(url_normalized)
-                    urls.write('\n')
+                logging.info(f"{url_normalized}:::{album_title}:::{foto_title}")
 
-                    r = requests.get(url_normalized, stream=True)
+                c += 1
 
-                    image = r.raw.read()
+                print(c, " - ", url_normalized)
 
-                    print(f"{album_title + '_' + foto_title + '_' + str(counter)}" + '.jpg')
-                    
-                    open(f"{self.path + album_title + '_' + foto_title + '_' + str(counter)}" + '.jpg', "wb").write(image)
-                    urls_downloaded.write(url_normalized)
-                    urls_downloaded.write('\n')
 
-                    counter += 1
-                    
-                except Exception as e:
-                    print(f'{e}\nurl_normalized = {url_normalized}\n')
-                    continue
+    def download(self):
+        c = 0
+
+        urls = open(f"{self.path}urls.log").readlines()
+        logging.basicConfig(
+            filename=f"{self.path}downloaded.log",
+            level=logging.INFO, 
+            format=FORMAT
+        )
                 
-        urls.close()
-        urls_downloaded.close()
+        for i in urls:
+            url = i.split(":::")[0].replace('\n', '')
+            album = i.split(":::")[1].replace('\n', '')
+            text = i.split(":::")[2].replace('\n', '')
+
+            if text == '\n':
+                text = ''
+
+            try:
+                session = requests.Session()
+                r = requests.get(url.strip(), stream=True)
+                image = r.raw.read()
+                open(f"{self.path}{album}_{text}_{str(c)}.jpg", "wb").write(image)
+                            
+                logging.info(url)
+
+                c += 1
+
+                print(f"{c} - {album}_{text}_{str(c)}.jpg")
+                        
+            except Exception as e:
+                print(f"{e}\n{url}\n")
+                pass
         
 
 v = VkGroupAlbumsDownloader()
+# v.write_urls_album_title_and_foto_text_to_log()
 v.download()
+
 
 
 
@@ -300,78 +319,3 @@ class VkUserAlbumsDownloader:
         
         urls.close()
         urls_downloaded.close()
-
-
-
-# v = VkUserAlbumsDownloader()
-# v.download_all()
-
-
-'''
-delete arr__;
-// get all <a> of all <div id="post_message_...">
-let posts = document.querySelectorAll('[id^="post_message_"] a')
-arr__ = [];
-for (let i = 0; i < posts.length; i++) {
-    if (posts[i]['href'].includes('.jp')) {
-        arr__.push(posts[i]["href"]);
-    }
-};
-arr__;
-'''
-
-'''
-def download():
-
-    from bs4 import BeautifulSoup as bs
-
-
-    path = 'G:/Desktop/vincentlittlehat/'
-    txt = 'G:/Desktop/vincentlittlehat/hrefs.txt'
-    txt2 = 'G:/Desktop/vincentlittlehat/imgs.txt'
-    marker = ': "'
-
-    f = open(txt, 'r')
-    f2 = open(txt2, 'w')
-    
-    for i in f:
-        z = i.split(marker)
-        if '.jp' in z[1]:
-            link = z[1].strip().replace('"', '')
-            f2.write(link)
-            f2.write('\n')
-
-            name = link[-20:]
-
-            print(link)
-            
-    f.close()
-    f2.close()
-
-    f2 = open(txt2, 'r')
-
-    for i in f2:
-        i = i.strip()
-        name = i[-20:]
-        r = requests.get(i, stream=True)
-            
-          
-        # with open(r'G:/Desktop/vincentlittlehat/','wb') as f:
-        #     shutil.copyfileobj(r.raw, f)
-        #     time.sleep(1.5)
-        #     shutil.copyfileobj(r.raw, f, 50000)
-        
-        image = r.raw.read()
-        open(path + name, "wb").write(image)
-        time.sleep(1)
-    
-    f2.close()      
-
-download()
-'''
-
-'''
-session = requests.Session()
-r = requests.get('https://www.irk.ru')
-print(r.status_code)
-'''
