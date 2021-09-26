@@ -1,143 +1,106 @@
 import requests, os
 import vk_api
-from wget import download
 
 
-access_token = ''
-api_version = '5.122'
-owner_id = '-33710306'
+login = ""
+passw = ""
 
-home = 'G:/Pictures/катасонова/'
-txt = 'G:/Pictures/Emma Watson/' + owner_id[1:] + '.txt' 
- 
+class VkUserAlbumsDownloader:
+    owner_id = '208932345' # '243290837'  # '315315491' 400360145 307121640
 
-vk_session = vk_api.VkApi(
-    'tel',
-    "passw"
-)
+    def __init__(self):
+        self.login = login
+        self.passw = passw
+      
+        self.path = f'G:/Desktop/vk_user_id{VkUserAlbumsDownloader.owner_id}/'
+    
+        try:
+            if not os.path.exists(self.path):
+                os.mkdir(self.path, mode=0o777)
+                print(f'Created path {self.path}')
+            else:
+                print(f'Path {self.path} exists')
+        except Exception as e:
+            print(f'Cant create path {self.path}')
+    
+    
+    def vk_auth(self):        
+        vk_session = vk_api.VkApi(self.login, self.passw)
+        vk_session.auth()    
+        vk = vk_session.get_api()
 
-vk_session.auth()    
-vk = vk_session.get_api()
+        return vk
 
-group_name = vk.groups.getById(group_ids = owner_id.replace('-', ''))[0]['name'].replace(' ', '_')
+       
+    def download_albums(self):
+        vk = self.vk_auth()
 
-if '|' in group_name:
-    group_name = group_name.replace('|', '_')
-
-
-'''
-if not os.path.exists(home):
-    os.mkdir(home, mode=0o777)           
-    print('Folder __{}__ created'.format(home))
-else: 
-    print('{} already exists'.format(home))  
-'''   
-
-
-def main():
-
-    f = open(txt, 'w')
-
-    albums = vk.photos.getAlbums(owner_id = owner_id)['items']
-
-    for _ in albums:
-        # id of album
-        album_id = _['id']
-        album_title = _['title']
-
-        if not ('2005' in album_title or '2004' in album_title or '2003' in album_title \
-                or '2002' in album_title or '2001' in album_title or '2000' in album_title):
-            print(f'downloading: {album_id}, {album_title}')
-
+        albums = vk.photos.getAlbums(owner_id=VkUserAlbumsDownloader.owner_id)
+    
+        urls = open(self.path + 'urls.txt', 'w')
+        urls_downloaded = open(self.path + 'urls_downloaded.txt', 'w')
+        
+        for album in albums['items']:
             fotos = vk.photos.get(
-                owner_id = owner_id,
-                album_id = album_id,
+                owner_id = VkUserAlbumsDownloader.owner_id,
+                album_id = album['id'],
                 count = 999
             )
 
-            print('================')
-            print(album_id)
-            print('================')
+            title = album['title'].replace('"', '').strip()
 
-            # grab all the fotos' urls from every album
-            for foto in fotos['items']:
-                foto_url = foto['sizes'][-1]['url']
+            album_path = self.path + title
+            print(album_path)
+            try:
+                if not os.path.exists(album_path):
+                    os.mkdir(album_path, mode=0o777)
+                    print(f'Created path {album_path}')
+                else:
+                    print(f'Path {album_path} exists')
+            except Exception as e:
+                print(e)
+                break
 
-                f.write(foto_url + '\n')
-                print(foto_url)
-   
-    f.close()
+            print(title)
+            
+            for i in fotos['items']:
+                # print(i['sizes'][-1]['url'])
 
+                url = i['sizes'][-1]['url']
+                # delete \n from url
+                try:
+                    url_normalized = url.replace('\n', '').replace('&type=album', '').strip()
+                    url_normalized_ = re.search(r'.*(?<=&c_uniq_tag=)', url_normalized).group(0).replace('&c_uniq_tag=', '')
 
-def get_all_fotos_of_user():
+                except Exception as e:
+                    url_normalized_ = url_normalized
 
-    owner_id = '33142641'
-    home = f'G:/Pictures/id{owner_id}'
-    get_all_fotos_of_user_txt = f'G:/Pictures/id{owner_id}/get_all_fotos_of_user.txt'
+                try:
+                    session = requests.Session()
 
-    if not os.path.exists(home):
-        os.mkdir(home, mode=0o777)           
-        print('Folder __{}__ created'.format(home))
-    else: 
-        print('{} already exists'.format(home)) 
+                    # write urls into file
+                    urls.write(url_normalized_)
+                    urls.write('\n')
 
-    count = 200
-    offset = 0
+                    r = requests.get(url_normalized_, stream=True)
 
-    f = open(get_all_fotos_of_user_txt, 'w')
-    num_of_fotos = vk.photos.getAll(owner_id=owner_id, count=count)['count']
+                    image = r.raw.read()
+                    img_title_len = len(url_normalized_) - 12
 
-    while offset <= num_of_fotos:
+                    print(album_path + (url_normalized_[img_title_len:].replace('/', '_')) + '.jpg')
 
-        albums = vk.photos.getAll(owner_id=owner_id, count=count, offset=offset)['items']
-
-        print('===============================')
-        print(f'offset={offset}, num_of_fotos={num_of_fotos}, num_of_fotos-offset={num_of_fotos-offset}')
-        print('===============================\n\n')
+                    open(album_path + '/' + url_normalized_[img_title_len:].replace('/', '_') + '.jpg', "wb").write(image)
+                    urls_downloaded.write(url_normalized_)
+                    urls_downloaded.write('\n')
+                    
+                except Exception as e:
+                    print(f'{e}, \n, url_normalized = {url_normalized}, \n')
+                    continue
         
-        for _ in albums:
-            foto_url = _['sizes'][-1]['url']
-            f.write(foto_url + '\n')
-            print(foto_url)
-
-        offset += 200
-
-    f.close()
+        urls.close()
+        urls_downloaded.close()
 
 
-# get_all_fotos_of_user()
 
-
-def save_img():
-    owner_id = '33142641'
-    home = f'G:/Pictures/id{owner_id}'
-    get_all_fotos_of_user_txt = f'G:/Pictures/id{owner_id}/get_all_fotos_of_user.txt'
-
-    f = open(get_all_fotos_of_user_txt, 'r').readlines()
-
-    try:
-        for url in f:
-            print(url.strip())
-            '''
-            session = requests.Session()
-
-            # delete \n from url
-            url_normalized = url.replace('\n', '').strip()
-            print(url_normalized)
-
-            r = requests.get(url_normalized, stream=True)
-
-            image = r.raw.read()
-            img_title_len = len(url_normalized) - 12
-            open(home + url_normalized[img_title_len:].replace('/', '_'), "wb").write(image)
-            '''
-            download(url.strip(), home)
-
-        f.close()
-
-    except Exception:
-        pass
-
-
-# main()
-save_img()
+v = VkUserAlbumsDownloader()
+v.download_albums()
